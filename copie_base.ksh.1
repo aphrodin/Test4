@@ -1,0 +1,211 @@
+#!/bin/ksh
+# ------------------------------------------------------------------------------
+# @(#) Application       : 
+# @(#) SCRIPT : <nom du script>
+# ------------------------------------------------------------------------------
+#
+# @(#) Auteur            :
+# @(#) Creation le       : jj/mm/2011
+# @(#) Version           : 1.00
+#
+# @(#) Descriptif        : ?
+#
+# @(#) Parametres entree : <neant>
+# @(#) Retour            : <neant>
+# ------------------------------------------------------------------------------
+# @(#) Modifications :
+# @(#) date  auteur     version : objet de la modification
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# VARIABLES ET FICHIERS
+#------------------------------------------------------------------------------
+
+BASE_EXIST=0
+
+REP_TRAV="$HOME/Conduite_Application/rafraichissement"
+REP_TRAV_LOG="${REP_TRAV}/log"
+REP_TRAV_CFG="${REP_TRAV}/config"
+
+FIC_FLAG=${REP_TRAV_LOG}/flag.txt
+
+SAUV_PROD_CRM="/sauvebase/CLONAGE"
+SAUV_PROD_MSE="/sauvebase/CLONAGEMSE"
+
+BASE_CIBLE=$1
+
+#------------------------------------------------------------------------------
+# FONCTIONS
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# CORPS
+#------------------------------------------------------------------------------
+
+#------------------------------------------------------------------------------
+# MAIN
+#------------------------------------------------------------------------------
+
+# Suppression des fichiers et shells deja présent
+rm -f ${REP_TRAV_LOG}/rafraichissement_*.ksh
+rm -f ${REP_TRAV_LOG}/fichiers_copies_*.lst
+rm -f ${FIC_FLAG}
+
+# Vérification du parramètre en entré, sortie du shell si la base ne fait pas partie du fichier liste
+echo "(Début) Vérification de la base passé en paramètre"
+while read ligne
+do
+if [ $ligne = $BASE_CIBLE ]
+then 
+   BASE_EXIST=1
+fi
+done < ${REP_TRAV_CFG}/liste_bases.lst
+
+if [ ! $BASE_EXIST -eq 1 ]
+then
+   echo "(Fatal) La base $1 ne fait pas partie des bases pouvant être rafraichie!"
+   echo "Sortie du shell en erreur"
+   exit 3
+else 
+   echo "(Fin) Vérification de la base passé en paramètre, base existante OK"
+fi 
+
+echo "Vous allez rafraichir la base $1 "
+echo "Etes vous sur de vouloir rafraichir la base $1 ?"
+echo "Tapez 'oui' pour continuer, autre caratère pour sortir"
+read reponse
+
+case $reponse in
+
+oui) echo \#\#\#\# Le traitement va commencé \#\#\#\#
+echo ""
+;;
+*) echo \#\#\#\# abandon du traitement \#\#\#\#
+exit 1
+;;
+esac
+
+sleep 1
+
+# Vérification du flag en base, si recette en cours arrêt du shell
+export ORACLE_SID=${BASE_CIBLE} 
+echo "Vérification du flag sur la base $ORACLE_SID"
+echo ""
+
+sqlplus -s '/  as sysdba' <<ENDSQL
+set ECHO OFF
+set HEADING OFF
+set HEADS ON
+spool ${FIC_FLAG}
+select * from WRK_ITF.FLAG_RECETTE;
+spool off
+exit
+ENDSQL
+
+# Suppression des retours à la ligne
+FLAG=`echo ${FIC_FLAG} | sed 's/\n//g'`
+
+FLAG=`cat ${FLAG}`
+if [ ! $FLAG = "NON" ]
+then
+  echo "(Fatal) Le flag est positionné sur recette en cours"
+  echo "Sortie du shell"
+  exit 3
+else
+  echo "Le flag autorise le rafraichissement"
+fi 
+
+# Déterminer de quelle application il sagit MSE ou CRM
+APPLI=`echo ${BASE_CIBLE} | awk '{ print( substr($0,0,3) ) }'`
+
+# Lister les fichiers de la sauvegarde de production à copier 
+cd ${REP_TRAV_LOG}
+
+if [ ${APPLI} = "CRM" ]
+then
+find ${SAUV_PROD_CRM} | grep dbf >> fichiers_copies_${BASE_CIBLE}.lst
+find  ${SAUV_PROD_CRM} | grep rdo >> fichiers_copies_${BASE_CIBLE}.lst
+echo "Création du fichier fichiers_copies_CRM.lst terminé"
+else
+if [ ${APPLI} = "MSE" ]
+then
+find ${SAUV_PROD_MSE} | grep dbf >> fichiers_copies_${BASE_CIBLE}.lst
+find  ${SAUV_PROD_MSE} | grep rdo >> fichiers_copies_${BASE_CIBLE}.lst
+echo "Création du fichier fichiers_copies_MSE.lst terminé"
+fi
+fi
+
+# création du shell de copie des fichiers de la base
+while read ligne
+do
+a_copier=`echo $ligne | awk -F"/" '{print("/",$4,"/",$5,"/",$6,"/",$7)}'`
+a_copier=`echo ${a_copier} | sed -e "s/ //g"`
+a_copier=`echo ${a_copier} | sed -e "s/${APPLI}PROD/${BASE_CIBLE}/g"`
+echo "cp -p ${ligne} ${a_copier}" >> rafraichissement_${BASE_CIBLE}.ksh
+
+done < fichiers_copies_${BASE_CIBLE}.lst
+
+
+# Envoi d'un email d'alerte avec le choix de la liste de diffusion
+if [ ${APPLI} = "CRM" ]
+then
+rafraichissement="rafraichissement_gama"
+
+mailx -s "[GAMA][Rafraichissement Warning] Lancement du rafraichissement de ${BASE_CIBLE}" $rafraichissement<<EOF
+Bonjour,
+
+Le rafraichissement de la base ${BASE_CIBLE} va être effectué via la sauvegarde de production, l'environnement sera indisponible tout le long de l'opération.
+La base ${BASE_CIBLE} va être écrasée !
+
+Le PID du processus est $$    $!
+
+Cordialement,
+
+L'equipe Conduite MCO GAMA
+EOF
+
+else
+rafraichissement="rafraichissement_harmony"
+
+#mailx -s "[HARMONY][Rafraichissement Warning] Lancement du rafraichissement de ${BASE_CIBLE}" $rafraichissement<<EOF
+#Bonjour,
+#
+#Le rafraichissement de la base ${BASE_CIBLE} va être effectué via la sauvegarde de production, l'environnement sera indisponible tout le long de l'opération.
+#La base ${BASE_CIBLE} va être écrasée !
+#
+#Le PID du processus est $$    $!
+#
+#Cordialement,
+#
+#L'equipe Conduite MCO Harmony
+#EOF
+
+fi
+
+echo "Sleep de 2 minutes"
+#sleep 120
+sleep 2
+
+# Fermeture de la base cible à rafraichir
+echo "Arret de la base ${BASE_CIBLE} "
+export ORACLE_SID=${BASE_CIBLE}
+sqlplus '/ as sysdba' <<FINSQL
+shutdown immediate;
+FINSQL
+echo "Arret de la base ${BASE_CIBLE} terminé"
+echo "Sleep de 10 minutes"
+#sleep 600
+sleep 2
+
+# Suppression des fichier de la base cible!
+echo "Suppression des fichier de la base ${BASE_CIBLE} !"
+find  /appli/ora*/${BASE_CIBLE}  -type f  -exec  rm {} \;
+
+# Lancement de la copie de la base !!
+echo "Copie de la base en cours"
+chmod +x ${REP_TRAV_LOG}/rafraichissement_${BASE_CIBLE}.ksh
+${REP_TRAV_LOG}/rafraichissement_${BASE_CIBLE}.ksh >> ${REP_TRAV_LOG}/rafraichissement_${BASE_CIBLE}.log 2>&1
+chmod -x ${REP_TRAV_LOG}/rafraichissement_${BASE_CIBLE}.ksh
+echo "Fin copie des fichiers"
+
+exit 0
