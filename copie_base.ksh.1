@@ -18,7 +18,7 @@
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
-# VARIABLES ET FICHIERS
+# VARIABLES ET FI****
 #------------------------------------------------------------------------------
 
 BASE_EXIST=0
@@ -46,13 +46,13 @@ BASE_CIBLE=$1
 # MAIN
 #------------------------------------------------------------------------------
 
-# Suppression des fichiers et shells deja présent
+# Suppression des fichiers et shells deja prÃ©sent
 rm -f ${REP_TRAV_LOG}/rafraichissement_*.ksh
 rm -f ${REP_TRAV_LOG}/fichiers_copies_*.lst
 rm -f ${FIC_FLAG}
 
-# Vérification du parramètre en entré, sortie du shell si la base ne fait pas partie du fichier liste
-echo "(Début) Vérification de la base passé en paramètre"
+# VÃ©rification du parramÃ¨tre en entrÃ©, sortie du shell si la base ne fait pas partie du fichier liste
+echo "(DÃ©but) VÃ©rification de la base passÃ© en paramÃ¨tre"
 while read ligne
 do
 if [ $ligne = $BASE_CIBLE ]
@@ -63,21 +63,21 @@ done < ${REP_TRAV_CFG}/liste_bases.lst
 
 if [ ! $BASE_EXIST -eq 1 ]
 then
-   echo "(Fatal) La base $1 ne fait pas partie des bases pouvant être rafraichie!"
+   echo "(Fatal) La base $1 ne fait pas partie des bases pouvant Ãªtre rafraichie!"
    echo "Sortie du shell en erreur"
    exit 3
 else 
-   echo "(Fin) Vérification de la base passé en paramètre, base existante OK"
+   echo "(Fin) VÃ©rification de la base passÃ© en paramÃ¨tre, base existante OK"
 fi 
 
 echo "Vous allez rafraichir la base $1 "
 echo "Etes vous sur de vouloir rafraichir la base $1 ?"
-echo "Tapez 'oui' pour continuer, autre caratère pour sortir"
+echo "Tapez 'oui' pour continuer, autre caratÃ¨re pour sortir"
 read reponse
 
 case $reponse in
 
-oui) echo \#\#\#\# Le traitement va commencé \#\#\#\#
+oui) echo \#\#\#\# Le traitement va commencÃ© \#\#\#\#
 echo ""
 ;;
 *) echo \#\#\#\# abandon du traitement \#\#\#\#
@@ -87,9 +87,9 @@ esac
 
 sleep 1
 
-# Vérification du flag en base, si recette en cours arrêt du shell
+# VÃ©rification du flag en base, si recette en cours arrÃªt du shell
 export ORACLE_SID=${BASE_CIBLE} 
-echo "Vérification du flag sur la base $ORACLE_SID"
+echo "VÃ©rification du flag sur la base $ORACLE_SID"
 echo ""
 
 sqlplus -s '/  as sysdba' <<ENDSQL
@@ -102,40 +102,40 @@ spool off
 exit
 ENDSQL
 
-# Suppression des retours à la ligne
+# Suppression des retours Ã  la ligne
 FLAG=`echo ${FIC_FLAG} | sed 's/\n//g'`
 
 FLAG=`cat ${FLAG}`
 if [ ! $FLAG = "NON" ]
 then
-  echo "(Fatal) Le flag est positionné sur recette en cours"
+  echo "(Fatal) Le flag est positionnÃ© sur recette en cours"
   echo "Sortie du shell"
   exit 3
 else
   echo "Le flag autorise le rafraichissement"
 fi 
 
-# Déterminer de quelle application il sagit MSE ou CRM
+# DÃ©terminer de quelle application il sagit MSE ou CRM
 APPLI=`echo ${BASE_CIBLE} | awk '{ print( substr($0,0,3) ) }'`
 
-# Lister les fichiers de la sauvegarde de production à copier 
+# Lister les fichiers de la sauvegarde de production Ã  copier 
 cd ${REP_TRAV_LOG}
 
 if [ ${APPLI} = "CRM" ]
 then
 find ${SAUV_PROD_CRM} | grep dbf >> fichiers_copies_${BASE_CIBLE}.lst
 find  ${SAUV_PROD_CRM} | grep rdo >> fichiers_copies_${BASE_CIBLE}.lst
-echo "Création du fichier fichiers_copies_CRM.lst terminé"
+echo "CrÃ©ation du fichier fichiers_copies_CRM.lst terminÃ©"
 else
 if [ ${APPLI} = "MSE" ]
 then
 find ${SAUV_PROD_MSE} | grep dbf >> fichiers_copies_${BASE_CIBLE}.lst
 find  ${SAUV_PROD_MSE} | grep rdo >> fichiers_copies_${BASE_CIBLE}.lst
-echo "Création du fichier fichiers_copies_MSE.lst terminé"
+echo "CrÃ©ation du fichier fichiers_copies_MSE.lst terminÃ©"
 fi
 fi
 
-# création du shell de copie des fichiers de la base
+# crÃ©ation du shell de copie des fichiers de la base
 while read ligne
 do
 a_copier=`echo $ligne | awk -F"/" '{print("/",$4,"/",$5,"/",$6,"/",$7)}'`
@@ -154,8 +154,8 @@ rafraichissement="rafraichissement_gama"
 mailx -s "[GAMA][Rafraichissement Warning] Lancement du rafraichissement de ${BASE_CIBLE}" $rafraichissement<<EOF
 Bonjour,
 
-Le rafraichissement de la base ${BASE_CIBLE} va être effectué via la sauvegarde de production, l'environnement sera indisponible tout le long de l'opération.
-La base ${BASE_CIBLE} va être écrasée !
+Le rafraichissement de la base ${BASE_CIBLE} va Ãªtre effectuÃ© via la sauvegarde de production, l'environnement sera indisponible tout le long de l'opÃ©ration.
+La base ${BASE_CIBLE} va Ãªtre Ã©crasÃ©e !
 
 Le PID du processus est $$    $!
 
@@ -170,8 +170,8 @@ rafraichissement="rafraichissement_harmony"
 #mailx -s "[HARMONY][Rafraichissement Warning] Lancement du rafraichissement de ${BASE_CIBLE}" $rafraichissement<<EOF
 #Bonjour,
 #
-#Le rafraichissement de la base ${BASE_CIBLE} va être effectué via la sauvegarde de production, l'environnement sera indisponible tout le long de l'opération.
-#La base ${BASE_CIBLE} va être écrasée !
+#Le rafraichissement de la base ${BASE_CIBLE} va Ãªtre effectuÃ© via la sauvegarde de production, l'environnement sera indisponible tout le long de l'opÃ©ration.
+#La base ${BASE_CIBLE} va Ãªtre Ã©crasÃ©e !
 #
 #Le PID du processus est $$    $!
 #
@@ -186,13 +186,13 @@ echo "Sleep de 2 minutes"
 #sleep 120
 sleep 2
 
-# Fermeture de la base cible à rafraichir
+# Fermeture de la base cible Ã  rafraichir
 echo "Arret de la base ${BASE_CIBLE} "
 export ORACLE_SID=${BASE_CIBLE}
 sqlplus '/ as sysdba' <<FINSQL
 shutdown immediate;
 FINSQL
-echo "Arret de la base ${BASE_CIBLE} terminé"
+echo "Arret de la base ${BASE_CIBLE} terminÃ©"
 echo "Sleep de 10 minutes"
 #sleep 600
 sleep 2
